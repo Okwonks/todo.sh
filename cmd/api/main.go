@@ -1,48 +1,44 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/Okwonks/go-todo/internal"
 )
 
-func todoHandler() *http.ServeMux {
-	router := http.NewServeMux()
-
-	router.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "TODO api v1\n")
-	}))
-
-	router.Handle("/", http.NotFoundHandler())
-
-	return router;
-}
-
-type HealthHandler struct{}
-func (h *HealthHandler) handler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Method:", r.Method)
-	w.Write([]byte("OK"))
-}
-
 func main() {
-	api := http.NewServeMux()
-	api.Handle("/todos", todoHandler())
+	srv := internal.Server()
 
-	mux := http.NewServeMux()
+	idleConnsClosed := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<- sigint
 
-	health := &HealthHandler{}
+		log.Println("Shutting down...")
 
-	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
-	mux.HandleFunc("GET /health", health.handler)
-	mux.Handle("/", http.NotFoundHandler())
+		ctx, release := context.WithTimeout(context.Background(), 5*time.Second)
+		defer release()
 
-	srv := &http.Server{
-		Addr: ":8080",
-		Handler: mux,
-	}
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("Server Shutdown: %v", err)
+		}
+
+		close(idleConnsClosed)
+		log.Println("Shutdown completed.")
+	}()
 
 	fmt.Printf("TODO api v1 listening on port %s\n", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil {
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+
+	<-idleConnsClosed
 }
