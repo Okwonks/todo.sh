@@ -20,7 +20,7 @@ func main() {
 	go func() {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-		<- sigint
+		<-sigint
 
 		log.Println("Shutting down...")
 

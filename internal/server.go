@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	v1 "github.com/Okwonks/go-todo/api/v1"
+	"github.com/Okwonks/go-todo/internal/database"
 )
 
 type health struct {
@@ -16,7 +17,10 @@ type health struct {
 // TODO: pass config object to handle ports and other
 // configs
 func Server() *http.Server {
-	apiv1 := v1.Router()
+	db := database.Connect()
+	database.Migrate(db)
+
+	apiv1 := v1.Router(db)
 
 	mux := http.NewServeMux()
 
