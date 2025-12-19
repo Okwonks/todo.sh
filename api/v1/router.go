@@ -2,9 +2,7 @@ package v1
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
-	"time"
 
 	"github.com/Okwonks/go-todo/api/v1/controllers"
 	"github.com/Okwonks/go-todo/internal/repository"
@@ -21,18 +19,5 @@ func Router(db *sql.DB) http.Handler {
 
 	mux.Handle("/", http.NotFoundHandler())
 
-	return logger(mux)
-}
-
-func logger(next http.Handler) http.Handler {
-	return  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		log.Printf("Received Request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
-
-		next.ServeHTTP(w, r)
-
-		duration := time.Since(start)
-		log.Printf("Completed Request: %s %s took %v", r.Method, r.URL.Path, duration)
-	})
+	return mux
 }

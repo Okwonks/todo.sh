@@ -2,7 +2,9 @@ package internal
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"time"
 
 	v1 "github.com/Okwonks/go-todo/api/v1"
 	"github.com/Okwonks/go-todo/internal/database"
@@ -43,8 +45,20 @@ func Server() *http.Server {
 
 	srv := &http.Server{
 		Addr: ":8080",
-		Handler: mux,
+		Handler: logger(mux),
 	}
 
 	return srv
+}
+
+// TODO: actually set the middleware correctly :)
+func logger(next http.Handler) http.Handler {
+	return  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		next.ServeHTTP(w, r)
+
+		duration := time.Since(start)
+		log.Printf("%s - %s %s %v", r.RemoteAddr, r.Method, r.URL.Path, duration)
+	})
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func Connect() *sql.DB {
-	db, err := sql.Open("sqlite3", "./todo.db")
+	db, err := sql.Open("sqlite3", "file:todo.db?_parseTime=true")
 	if err != nil {
 		log.Fatal(err)
 	}

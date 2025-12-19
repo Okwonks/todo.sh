@@ -15,11 +15,12 @@ func NewTodoService(r repository.TodoRepository) *TodoService {
 	return &TodoService{r}
 }
 
-func (s *TodoService) Create(todo *model.Todo) (int64, error) {
-	if todo.Description == "" {
+func (s *TodoService) Create(t *model.Todo) (int64, error) {
+	if t.Description == "" {
 		return 0, errors.New("Description of the todo is required")
 	}
-	return s.repo.Create(todo)
+
+	return s.repo.Create(t)
 }
 
 func (s *TodoService) GetAll() ([]model.Todo, error) {
@@ -30,8 +31,8 @@ func (s *TodoService) GetById(id int64) (*model.Todo, error) {
 	return s.repo.GetById(id)
 }
 
-func (s *TodoService) Update(u *model.Todo) error {
-	return s.repo.Update(u)
+func (s *TodoService) Update(t *model.Todo) error {
+	return s.repo.Update(t)
 }
 
 func (s *TodoService) Delete(id int64) error {

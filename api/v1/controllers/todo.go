@@ -26,7 +26,7 @@ func (h *TodoHandler) RegisterTodos(mux *http.ServeMux) http.Handler {
 }
 
 func (h *TodoHandler) Create(w http.ResponseWriter, r *http.Request) {
-	todo := model.Todo{}
+	var todo model.Todo
 	json.NewDecoder(r.Body).Decode(&todo)
 
 	id, err := h.service.Create(&todo)
