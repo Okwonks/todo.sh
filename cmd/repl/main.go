@@ -14,6 +14,7 @@ var apiClient = client.NewClient("http://localhost:8080")
 func help() {
 	  fmt.Println(`
 Commands:
+  list
   help
   exit`)
 }
