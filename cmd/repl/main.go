@@ -14,6 +14,7 @@ var apiClient = client.NewClient("http://localhost:8080")
 func help() {
 	  fmt.Println(`
 Commands:
+  create [flags] <description>
   list
   help
   exit`)
@@ -31,6 +32,14 @@ func executor(input string) {
 	case "exit", "quit":
 	  fmt.Println("...exiting")
 	  panic("exit")
+	case "create":
+		remaining := parts[1:]
+		if len(remaining) == 0 {
+			fmt.Println("A description is required to add a task")
+			return
+		}
+
+	  return
 	case "list":
 	  todos, err := apiClient.List()
 	  if err != nil {

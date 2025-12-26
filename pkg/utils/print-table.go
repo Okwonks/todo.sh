@@ -74,14 +74,14 @@ func (p *printTable) Standard() {
 func getHeaders(todos []model.Todo) []string {
 	var headers []string
 
-	extractJSONName := func (fieldName, tag string) string {
-		if tag == "-" {
+	extractJSONName := func (fieldName, tagName string) string {
+		if tagName == "-" {
 			return "-"
 		}
-		if tag == "" {
+		if tagName == "" {
 			return fieldName
 		}
-		parts := strings.Split(tag, ",")
+		parts := strings.Split(tagName, ",")
 		name := parts[0]
 		if name == "" {
 			return fieldName

@@ -58,3 +58,37 @@ func (c *Client) GetById(id int64) (*model.Todo, error) {
 	err = json.NewDecoder(resp.Body).Decode(&todo)
 	return &todo, err
 }
+
+func (c *Client) Update(data map[string]any) (*model.Todo, error) {
+	payload, _ := json.Marshal(data)
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/api/v1/todos", c.baseURL), bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var todo model.Todo
+	err = json.NewDecoder(resp.Body).Decode(&todo)
+	return &todo, err
+}
+
+func (c *Client) Delete(id int64) error {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/todos/%d", c.baseURL, id), nil)
+	if err != nil {
+		return err
+	}
+	
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}

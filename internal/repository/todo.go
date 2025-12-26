@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"log"
+	"reflect"
 
 	"github.com/Okwonks/go-todo/internal/model"
 )
@@ -72,7 +73,35 @@ func (r *todoRepo) GetById(id int64) (*model.Todo, error) {
 }
 
 func (r *todoRepo) Update(todo *model.Todo) error {
-	_, err := r.db.Exec(
+	stored, err := r.GetById(todo.ID)
+
+	v := reflect.ValueOf(todo) 
+	s := reflect.ValueOf(stored)
+	for i := 0; i < v.NumField(); i++ {
+		fieldName := v.Type().Field(i).Name
+		if fieldName != "Description" && fieldName != "Status" {
+	    continue
+		}
+
+		todoField := v.FieldByName(fieldName)
+		storedField := s.FieldByName(fieldName)
+		if todoField.Kind() == reflect.String && todoField.String() == "" {
+			if todoField.CanSet() {
+				todoField.SetString(storedField.String())
+			}
+		}
+	}
+
+	if todo.DueDate == nil {
+		todo.DueDate = stored.DueDate
+	}
+
+	// TODO: there's probably a better way to do this :)
+	if todo.Priority <= 0 || todo.Priority > 5 {
+		todo.Priority = stored.Priority
+	}
+
+	_, err = r.db.Exec(
 		`UPDATE todo SET description=?, due_date=?, priority=?, status=? WHERE id=?`,
 		todo.Description, todo.DueDate, todo.Priority, todo.Status, todo.ID,
 	)

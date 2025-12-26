@@ -21,6 +21,8 @@ func (h *TodoHandler) RegisterTodos(mux *http.ServeMux) http.Handler {
 	mux.Handle("GET /todos", http.HandlerFunc(h.List))
 	mux.Handle("GET /todos/{id}", http.HandlerFunc(h.FindById))
 	mux.Handle("POST /todos", http.HandlerFunc(h.Create))
+	mux.Handle("PUT /todos", http.HandlerFunc(h.Update))
+	mux.Handle("DELETE /todos", http.HandlerFunc(h.Delete))
 
 	return mux
 }
@@ -52,4 +54,27 @@ func (h *TodoHandler) FindById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(todo)
+}
+
+func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	var t model.Todo
+	json.NewDecoder(r.Body).Decode(&t)
+	t.ID = int64(id)
+
+	h.service.Update(&t)
+	json.NewEncoder(w).Encode(t)
+}
+
+func (h *TodoHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	err := h.service.Delete(int64(id))
+	if err != nil {
+		w.WriteHeader(400)
+		res := map[string]string{"message":err.Error()}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	w.WriteHeader(204)
 }
