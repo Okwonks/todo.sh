@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Okwonks/go-todo/internal/client"
+	"github.com/Okwonks/go-todo/internal/model"
 	"github.com/Okwonks/go-todo/pkg/utils"
 	"github.com/c-bata/go-prompt"
 )
@@ -30,7 +31,6 @@ func executor(input string) {
 
 	switch parts[0] {
 	case "exit", "quit":
-	  fmt.Println("...exiting")
 	  panic("exit")
 	case "create":
 		remaining := parts[1:]
@@ -39,6 +39,17 @@ func executor(input string) {
 			return
 		}
 
+		// TODO: add support on setting flags and other task properties
+		// when creating a new task
+		todo := model.Todo{Description: strings.Join(remaining, " ")}
+
+		t, err := apiClient.CreateTodo(&todo)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		fmt.Println("Task added:", t.Description, t.Priority, t.Status)
 	  return
 	case "list":
 	  todos, err := apiClient.List()
