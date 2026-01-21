@@ -139,7 +139,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m mainModel) View() string {
 	style := lipgloss.NewStyle().Bold(true).Margin(1)
-	title := style.Render("Task")
+	title := style.Render("Todo.sh")
 
 	if m.mode == create {
 		return fmt.Sprintf("%s\n%s", title, m.newTaskForm.View())
