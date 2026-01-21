@@ -7,6 +7,7 @@ import (
 
 	"github.com/Okwonks/go-todo/internal/client"
 	"github.com/Okwonks/go-todo/internal/model"
+	"github.com/Okwonks/go-todo/internal/tui/constants"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,8 +34,6 @@ var (
 	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	cursorStyle         = focusedStyle
 	noStyle             = lipgloss.NewStyle()
-	// helpStyle           = blurredStyle
-	// cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 
 	focusedButton = focusedStyle.Render("[ Submit ]")
 	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
@@ -90,6 +89,8 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 	  switch msg.String() {
 		case "esc":
 			return m, func() tea.Msg { return BackToRoot{} }
+		case "ctrl+c":
+		  return m, tea.Quit
 		case "tab", "shift+tab", "enter", "up", "down":
 			s := msg.String()
 
@@ -112,6 +113,11 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 
 				for i := range m.inputs {
 					m.inputs[i].Reset()
+					if i == 0 {
+						m.inputs[i].Focus()
+						m.inputs[i].PromptStyle = focusedStyle
+						m.inputs[i].TextStyle = focusedStyle
+					}
 				}
 				m.focusIndex = 0
 
@@ -168,11 +174,6 @@ func (m *FormModel) updateInputs(msg tea.Msg) tea.Cmd {
 func (m FormModel) View() string {
 	var b strings.Builder
 
-	style := lipgloss.NewStyle().Bold(true).Margin(1)
-	title := style.Render("Task")
-	b.WriteString(title)
-	b.WriteRune('\n')
-
 	for i:= range m.inputs {
 		b.WriteString(m.inputs[i].View())
 		if i < len(m.inputs)-1 {
@@ -186,8 +187,7 @@ func (m FormModel) View() string {
 	}
 	fmt.Fprintf(&b, "\n\n%s\n\n", *button)
 
-
-	help := "\n[q] quit • [esc] go back"
+	help := constants.HelpStyle("\n[ctrl+c] quit • [esc] go back")
 
 	return b.String() + help
 }

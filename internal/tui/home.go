@@ -7,6 +7,7 @@ import (
 
 	"github.com/Okwonks/go-todo/internal/client"
 	"github.com/Okwonks/go-todo/internal/model"
+	"github.com/Okwonks/go-todo/internal/tui/constants"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -137,12 +138,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) View() string {
-	if m.mode == create {
-		return m.newTaskForm.View()
-	}
-
 	style := lipgloss.NewStyle().Bold(true).Margin(1)
 	title := style.Render("Task")
+
+	if m.mode == create {
+		return fmt.Sprintf("%s\n%s", title, m.newTaskForm.View())
+	}
 
 	errBlock := ""
 	if m.err != nil {
@@ -151,7 +152,7 @@ func (m mainModel) View() string {
 			Render("Error: " + m.err.Error()) + "\n"
 	}
 
-	help := "\n\n[q] quit • [r] refresh • [n] new task"
+	help := constants.HelpStyle("\n\n[q] quit • [r] refresh • [n] new task")
 
 	return fmt.Sprintf("%s\n%s\n%s", title, errBlock, m.table.View()) + help
 }
