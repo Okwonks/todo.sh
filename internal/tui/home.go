@@ -19,11 +19,11 @@ const (
 	create
 )
 
-type MainModel struct {
+type mainModel struct {
 	mode        mode
 	client      *client.Client
 	table       table.Model
-	newTaskForm InputModel
+	newTaskForm FormModel
 	tasks       []model.Todo
 	err         error
 }
@@ -38,12 +38,22 @@ func InitRoot(c *client.Client) tea.Model {
 
 	t := table.New(
 		table.WithColumns(columns),
+		table.WithFocused(true),
 		table.WithHeight(10),
 	)
 
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true)
+	s.Selected = s.Selected.
+		Background(lipgloss.Color("229")).
+		Bold(false)
+	t.SetStyles(s)
+
 	f := InitNewTask(c)
 
-	m := MainModel{mode: view, table: t, client: c, newTaskForm: f} 
+	m := mainModel{mode: view, table: t, client: c, newTaskForm: f} 
 	return m
 }
 
@@ -67,11 +77,11 @@ func formatDueDate(t *time.Time) string {
 	return t.Format("2006-01-02 15:04:05")
 }
 
-func (m MainModel) Init() tea.Cmd {
+func (m mainModel) Init() tea.Cmd {
   return fetchTodos(m.client)
 }
 
-func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case listTodosMsg:
 	  m.tasks = msg
@@ -119,10 +129,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.newTaskForm, cmd = m.newTaskForm.Update(msg)
 	}
 
+	if m.mode == view {
+		m.table, cmd = m.table.Update(msg)
+	}
+
 	return m, cmd
 }
 
-func (m MainModel) View() string {
+func (m mainModel) View() string {
 	if m.mode == create {
 		return m.newTaskForm.View()
 	}
@@ -137,7 +151,7 @@ func (m MainModel) View() string {
 			Render("Error: " + m.err.Error()) + "\n"
 	}
 
-	help := "\n[q] quit • [r] refresh • [n] new task"
+	help := "\n\n[q] quit • [r] refresh • [n] new task"
 
 	return fmt.Sprintf("%s\n%s\n%s", title, errBlock, m.table.View()) + help
 }

@@ -19,7 +19,7 @@ type BackToRoot struct {
 	NewTask *model.Todo
 }
 
-type InputModel struct {
+type FormModel struct {
 	submitted   bool
 	inputs      []textinput.Model
 	focusIndex  int
@@ -40,8 +40,8 @@ var (
 	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
 )
 
-func InitNewTask(c *client.Client) InputModel {
-	m := InputModel{
+func InitNewTask(c *client.Client) FormModel {
+	m := FormModel{
 		inputs: make([]textinput.Model, 2),
 		client: c,
 	}
@@ -80,11 +80,11 @@ func InitNewTask(c *client.Client) InputModel {
 	return m
 }
 
-func (m InputModel) Init() tea.Cmd {
+func (m FormModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
+func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 	  switch msg.String() {
@@ -109,6 +109,11 @@ func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 				if err != nil {
 					m.err = err
 				}
+
+				for i := range m.inputs {
+					m.inputs[i].Reset()
+				}
+				m.focusIndex = 0
 
 				return m, func() tea.Msg {
 					return BackToRoot{NewTask: ct}
@@ -150,7 +155,7 @@ func (m InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *InputModel) updateInputs(msg tea.Msg) tea.Cmd {
+func (m *FormModel) updateInputs(msg tea.Msg) tea.Cmd {
 	cmds := make([]tea.Cmd, len(m.inputs))
 
 	for i := range m.inputs {
@@ -160,7 +165,7 @@ func (m *InputModel) updateInputs(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m InputModel) View() string {
+func (m FormModel) View() string {
 	var b strings.Builder
 
 	style := lipgloss.NewStyle().Bold(true).Margin(1)
