@@ -27,6 +27,8 @@ type FormModel struct {
 	cursorMode  cursor.Mode
 	client      *client.Client
 	err         error
+	width       int
+	height      int
 }
 
 var (

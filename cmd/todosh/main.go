@@ -30,7 +30,7 @@ func main() {
 	}
 
 	cancel() // sends signal to API server
-	
+
 	if err := <-apiChan; err != nil {
 		log.Printf("API shutdown error: %v", err)
 	}

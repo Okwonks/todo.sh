@@ -27,6 +27,8 @@ type mainModel struct {
 	newTaskForm FormModel
 	tasks       []model.Todo
 	err         error
+	width       int
+	height      int
 }
 
 func InitRoot(c *client.Client) tea.Model {
@@ -84,6 +86,30 @@ func (m mainModel) Init() tea.Cmd {
 
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
+		// Update table height dynamically
+		// Reserve space for title, error, helper text 
+		headerHeight := 3
+		footerHeight := 3
+		errorHeight := 0
+		if m.err != nil {
+			errorHeight = 2
+		}
+
+		availableHeight := m.height - headerHeight - footerHeight - errorHeight
+		if availableHeight < 5 {
+			availableHeight = 5 // minimum height
+		}
+		m.table.SetHeight(availableHeight)
+
+		// Propagate to form model
+		m.newTaskForm.width = m.width
+		m.newTaskForm.height = m.height
+
+		return m, nil
 	case listTodosMsg:
 	  m.tasks = msg
 		rows := make([]table.Row, 0, len(msg))
@@ -142,7 +168,28 @@ func (m mainModel) View() string {
 	title := style.Render("Todo.sh")
 
 	if m.mode == create {
-		return fmt.Sprintf("%s\n%s", title, m.newTaskForm.View())
+		form := m.newTaskForm.View()
+		if m.width > 0 {
+			form = lipgloss.Place(
+				m.width,
+				m.height,
+				lipgloss.Center,
+				lipgloss.Center,
+				form,
+			)
+		}
+		return lipgloss.JoinVertical(lipgloss.Left, title, form)
+	}
+
+	const breakpoint = 120
+
+	var content string
+
+	switch {
+	case m.width < breakpoint:
+		content = m.renderStackedContent()
+	default:
+		content = m.renderWideContent()
 	}
 
 	errBlock := ""
@@ -152,7 +199,63 @@ func (m mainModel) View() string {
 			Render("Error: " + m.err.Error()) + "\n"
 	}
 
-	help := constants.HelpStyle("\n\n[q] quit • [r] refresh • [n] new task")
+	help := constants.HelpStyle("[q] quit • [r] refresh • [n] new task")
 
-	return fmt.Sprintf("%s\n%s\n%s", title, errBlock, m.table.View()) + help
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		title,
+		content,
+		errBlock,
+		help,
+	)
+}
+
+func (m mainModel) renderStackedContent() string {
+	table := m.table.View()
+	stats := fmt.Sprintf("Tasks: %d", len(m.tasks))
+	return lipgloss.JoinVertical(lipgloss.Left, table, stats)
+} 
+
+func (m mainModel) renderWideContent() string {
+	tableWidth := int(float64(m.width) * 0.4)
+	tableStyle := lipgloss.NewStyle().Width(tableWidth)
+	leftColumn := tableStyle.Render(m.table.View())
+
+	sidebarWidth := int(float64(m.width - tableWidth - 2) * 0.2)
+	sidebarStyle := lipgloss.NewStyle().
+	  Width(sidebarWidth).
+		Border(lipgloss.NormalBorder()).
+		Padding(1)
+
+	rightColumn := sidebarStyle.Render(m.renderSidebar())
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftColumn, rightColumn)
+}
+
+func (m mainModel) renderSidebar() string {
+	totalTasks := len(m.tasks)
+	completedTasks := 0
+	highPriority := 0
+
+	for _, task := range m.tasks {
+		if task.Completed {
+			completedTasks += 1
+		}
+
+		if task.Priority >= 3 {
+			highPriority += 1
+		}
+	}
+
+	stats := fmt.Sprintf(
+		"Stats\n\n" +
+		"Total Tasks: %d\n" +
+		"Completed: %d\n" +
+		"High Priority: %d\n",
+		totalTasks,
+		completedTasks,
+		highPriority,
+	)
+
+	return stats
 }
