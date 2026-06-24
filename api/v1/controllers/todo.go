@@ -21,8 +21,8 @@ func (h *TodoHandler) RegisterTodos(mux *http.ServeMux) http.Handler {
 	mux.Handle("GET /todos", http.HandlerFunc(h.List))
 	mux.Handle("GET /todos/{id}", http.HandlerFunc(h.FindById))
 	mux.Handle("POST /todos", http.HandlerFunc(h.Create))
-	mux.Handle("PUT /todos", http.HandlerFunc(h.Update))
-	mux.Handle("DELETE /todos", http.HandlerFunc(h.Delete))
+	mux.Handle("PUT /todos/{id}", http.HandlerFunc(h.Update))
+	mux.Handle("DELETE /todos/{id}", http.HandlerFunc(h.Delete))
 
 	return mux
 }

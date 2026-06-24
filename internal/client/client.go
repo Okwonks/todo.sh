@@ -59,9 +59,9 @@ func (c *Client) GetById(id int64) (*model.Todo, error) {
 	return &todo, err
 }
 
-func (c *Client) Update(data map[string]any) (*model.Todo, error) {
+func (c *Client) Update(id int64, data map[string]any) (*model.Todo, error) {
 	payload, _ := json.Marshal(data)
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/api/v1/todos", c.baseURL), bytes.NewBuffer(payload))
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/api/v1/todos/%d", c.baseURL, id), bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
