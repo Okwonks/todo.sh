@@ -1,1 +1,4 @@
+build/
+
 todo.db
+todo.log

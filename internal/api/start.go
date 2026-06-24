@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -41,7 +40,7 @@ func Start(ctx context.Context) error {
 		log.Println("Shutdown completed.")
 	}()
 
-	fmt.Printf("TODO api v1 listening on port %s\n", srv.Addr)
+	log.Printf("TODO api v1 listening on port %s\n", srv.Addr)
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		return err
 	}

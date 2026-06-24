@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Okwonks/go-todo/internal/api"
@@ -12,6 +14,28 @@ import (
 )
 
 func main() {
+	// Determine the standard user cache directory (e.g., ~/Library/Caches on macOS, ~/.cache on Linux)
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		cacheDir = "." // Fallback to current working directory
+	}
+
+	logDir := filepath.Join(cacheDir, "todosh")
+	// Ensure the directory exists
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Fatalf("Failed to create log directory: %v", err)
+	}
+
+	logFilePath := filepath.Join(logDir, "todo.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+	defer logFile.Close()
+
+	// Redirect standard logger output to the log file
+	log.SetOutput(logFile)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
