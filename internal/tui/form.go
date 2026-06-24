@@ -16,6 +16,8 @@ import (
 
 type CreateTask struct {}
 
+type EditTask struct {}
+
 type BackToRoot struct {
 	NewTask *model.Todo
 }

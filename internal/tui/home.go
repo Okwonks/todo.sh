@@ -18,6 +18,7 @@ type mode int
 const (
 	view mode = iota
 	create
+	edit
 )
 
 type mainModel struct {
@@ -99,10 +100,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			errorHeight = 2
 		}
 
-		availableHeight := m.height - headerHeight - footerHeight - errorHeight
-		if availableHeight < 5 {
-			availableHeight = 5 // minimum height
-		}
+		availableHeight := max(m.height - headerHeight - footerHeight - errorHeight, 5)
 		m.table.SetHeight(availableHeight)
 
 		// Propagate to form model
@@ -124,7 +122,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errorMsg:
 	  m.err = msg
 		return m, nil
-	case CreateTask:
+	case CreateTask, EditTask:
 	  return m, nil
 	case BackToRoot:
 		if msg.NewTask != nil {
@@ -137,7 +135,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	  m.mode = view
 		return m, nil
 	case tea.KeyMsg:
-	  if m.mode == view {
+		if m.mode == view {
 			switch msg.String() {
 			case "ctrl+c", "q":
 				return m, tea.Quit
@@ -147,12 +145,15 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = create
 
 				return m, func() tea.Msg { return CreateTask{} }
+			case "e":
+				m.mode = edit
+				return m, func() tea.Msg { return EditTask{} }
 			}
 		}
 	}
 
 	var cmd tea.Cmd
-	if m.mode == create {
+	if m.mode == create || m.mode == edit {
 		m.newTaskForm, cmd = m.newTaskForm.Update(msg)
 	}
 
@@ -199,7 +200,7 @@ func (m mainModel) View() string {
 			Render("Error: " + m.err.Error()) + "\n"
 	}
 
-	help := constants.HelpStyle("[q] quit • [r] refresh • [n] new task")
+	help := constants.HelpStyle("[q] quit • [r] refresh • [n] new task • [e] edit")
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
