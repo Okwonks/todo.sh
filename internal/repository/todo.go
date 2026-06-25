@@ -74,9 +74,12 @@ func (r *todoRepo) GetById(id int64) (*model.Todo, error) {
 
 func (r *todoRepo) Update(todo *model.Todo) error {
 	stored, err := r.GetById(todo.ID)
+	if err != nil {
+		return err
+	}
 
-	v := reflect.ValueOf(todo) 
-	s := reflect.ValueOf(stored)
+	v := reflect.ValueOf(todo).Elem()
+	s := reflect.ValueOf(stored).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		fieldName := v.Type().Field(i).Name
 		if fieldName != "Description" && fieldName != "Status" {

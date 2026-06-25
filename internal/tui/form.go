@@ -31,22 +31,21 @@ type FormModel struct {
 	err         error
 	width       int
 	height      int
+	todoID      int64
 }
 
 var (
-	focusedStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	cursorStyle         = focusedStyle
-	noStyle             = lipgloss.NewStyle()
-
-	focusedButton = focusedStyle.Render("[ Submit ]")
-	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	blurredStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	cursorStyle  = focusedStyle
+	noStyle      = lipgloss.NewStyle()
 )
 
-func InitNewTask(c *client.Client) FormModel {
+func InitTask(c *client.Client, t *model.Todo) FormModel {
 	m := FormModel{
 		inputs: make([]textinput.Model, 2),
 		client: c,
+		todoID: t.ID,
 	}
 
 	var ti textinput.Model
@@ -58,13 +57,15 @@ func InitNewTask(c *client.Client) FormModel {
 
 		switch i {
 		case 0:
-		  ti.Placeholder = "Task"
+			ti.Placeholder = "Task"
+			ti.SetValue(t.Description)
 			ti.Focus()
-		  ti.PromptStyle = focusedStyle
+			ti.PromptStyle = focusedStyle
 			ti.TextStyle = focusedStyle
 		case 1:
-		  ti.Placeholder = "Priority"
+			ti.Placeholder = "Priority"
 			ti.CharLimit = 1
+			ti.SetValue(strconv.Itoa(t.Priority))
 			ti.Validate = func(s string) error {
 				if s == "" {
 					return nil
@@ -105,6 +106,19 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 					return m, nil
 				}
 
+				if m.todoID != 0 {
+					_, err := m.client.
+						Update(m.todoID, map[string]any{
+							"description": m.inputs[0].Value(),
+							"priority":    p,
+						})
+					if err != nil {
+						m.err = err
+						return m, nil
+					}
+					return m, func() tea.Msg { return BackToRoot{} }
+				}
+
 				t := &model.Todo{
 					Description: m.inputs[0].Value(),
 					Priority:    p,
@@ -113,6 +127,7 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 				ct, err := m.client.CreateTodo(t)
 				if err != nil {
 					m.err = err
+					return m, nil
 				}
 
 				for i := range m.inputs {
@@ -130,20 +145,20 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 				}
 			}
 
-		  if s == "up" || s == "shift+tab" {
-				m.focusIndex--;
+			if s == "up" || s == "shift+tab" {
+				m.focusIndex--
 			} else {
-				m.focusIndex++;
+				m.focusIndex++
 			}
 
-		  if m.focusIndex > len(m.inputs) {
+			if m.focusIndex > len(m.inputs) {
 				m.focusIndex = 0
 			} else if m.focusIndex < 0 {
 				m.focusIndex = len(m.inputs)
-		  }
+			}
 
-		  cmds := make([]tea.Cmd, len(m.inputs))
-		  for i := 0; i < len(m.inputs); i++ {
+			cmds := make([]tea.Cmd, len(m.inputs))
+			for i := 0; i < len(m.inputs); i++ {
 				if i == m.focusIndex {
 					cmds[i] = m.inputs[i].Focus()
 					m.inputs[i].PromptStyle = focusedStyle
@@ -156,7 +171,7 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 				m.inputs[i].TextStyle = noStyle
 			}
 
-		  return m, tea.Batch(cmds...)
+			return m, tea.Batch(cmds...)
 		}
 	}
 
@@ -178,20 +193,53 @@ func (m *FormModel) updateInputs(msg tea.Msg) tea.Cmd {
 func (m FormModel) View() string {
 	var b strings.Builder
 
-	for i:= range m.inputs {
+	for i := range m.inputs {
 		b.WriteString(m.inputs[i].View())
 		if i < len(m.inputs)-1 {
 			b.WriteRune('\n')
 		}
 	}
 
+	btnText := "Submit"
+	if m.todoID != 0 {
+		btnText = "Save"
+	}
+
+	focusedButton := focusedStyle.Render(fmt.Sprintf("[ %s ]", btnText))
+	blurredButton := fmt.Sprintf("[ %s ]", blurredStyle.Render(btnText))
+
 	button := &blurredButton
 	if m.focusIndex == len(m.inputs) {
 		button = &focusedButton
 	}
-	fmt.Fprintf(&b, "\n\n%s\n\n", *button)
+	fmt.Fprintf(&b, "\n\n%s", *button)
+
+	titleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true).
+		MarginBottom(1)
+
+	action := "New"
+	if m.todoID != 0 {
+		action = "Edit"
+	}
+	titleStr := titleStyle.Render(fmt.Sprintf("%s Task", action))
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStr,
+		b.String(),
+	)
+
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("205")).
+		Padding(1, 3).
+		Width(40)
+
+	card := modalStyle.Render(content)
 
 	help := constants.HelpStyle("\n[ctrl+c] quit • [esc] go back")
 
-	return b.String() + help
+	return card + help
 }
