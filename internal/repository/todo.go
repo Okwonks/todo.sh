@@ -2,8 +2,10 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/Okwonks/go-todo/internal/model"
 )
@@ -25,7 +27,28 @@ func NewTodoRepository(db *sql.DB) TodoRepository {
 }
 
 func (r *todoRepo) Create(t *model.Todo) (int64, error) {
-	res, err := r.db.Exec("INSERT INTO todo(description) VALUES(?)", t.Description)
+	cols := make([]string, 0, 3)
+	params := make([]string, 0, 3)
+	args := make([]any, 0, 3)
+
+	cols = append(cols, "description")
+	params = append(params, "?")
+	args = append(args, t.Description)
+
+	cols = append(cols, "priority")
+	params = append(params, "?")
+	args = append(args, t.Priority)
+
+	if t.DueDate != nil {
+		cols = append(cols, "due_date")
+		params = append(params, "?")
+		args = append(args, t.DueDate)
+	}
+
+	query := fmt.
+	  Sprintf("INSERT INTO todo(%s) VALUES(%s)", strings.Join(cols, ", "), strings.Join(params, ", "))
+
+	res, err := r.db.Exec(query, args...)
 	if err != nil {
 		return 0, err
 	}
