@@ -41,7 +41,7 @@ func executor(input string) {
 
 		// TODO: add support on setting flags and other task properties
 		// when creating a new task
-		todo := model.Todo{Description: strings.Join(remaining, " ")}
+		todo := model.Todo{Description: strings.Join(remaining, " "), ProjectID: "todos"}
 
 		t, err := apiClient.CreateTodo(&todo)
 		if err != nil {
@@ -49,7 +49,7 @@ func executor(input string) {
 			return
 		}
 
-		fmt.Println("Task added:", t.Description, t.Priority, t.Status)
+		fmt.Println("Task added:", t.Description, fmt.Sprintf("(project: %s)", t.ProjectID), t.Priority, t.Status)
 	  return
 	case "list":
 	  todos, err := apiClient.List()

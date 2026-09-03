@@ -27,9 +27,9 @@ func NewTodoRepository(db *sql.DB) TodoRepository {
 }
 
 func (r *todoRepo) Create(t *model.Todo) (int64, error) {
-	cols := make([]string, 0, 3)
-	params := make([]string, 0, 3)
-	args := make([]any, 0, 3)
+	cols := make([]string, 0, 4)
+	params := make([]string, 0, 4)
+	args := make([]any, 0, 4)
 
 	cols = append(cols, "description")
 	params = append(params, "?")
@@ -45,6 +45,14 @@ func (r *todoRepo) Create(t *model.Todo) (int64, error) {
 		args = append(args, t.DueDate)
 	}
 
+	projectID := t.ProjectID
+	if projectID == "" {
+		projectID = "todos"
+	}
+	cols = append(cols, "project_id")
+	params = append(params, "?")
+	args = append(args, projectID)
+
 	query := fmt.
 	  Sprintf("INSERT INTO todo(%s) VALUES(%s)", strings.Join(cols, ", "), strings.Join(params, ", "))
 
@@ -57,7 +65,7 @@ func (r *todoRepo) Create(t *model.Todo) (int64, error) {
 }
 
 func (r *todoRepo) GetAll() ([]model.Todo, error) {
-	rows, err := r.db.Query("SELECT id, created_at, description, priority, status, due_date FROM todo")
+	rows, err := r.db.Query("SELECT id, created_at, description, priority, status, due_date, project_id FROM todo")
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +81,7 @@ func (r *todoRepo) GetAll() ([]model.Todo, error) {
 			&todo.Priority,
 			&todo.Status,
 			&todo.DueDate,
+			&todo.ProjectID,
 		)
 		if err != nil {
 			log.Printf("ERROR: Scan error: %v", err)
@@ -85,8 +94,8 @@ func (r *todoRepo) GetAll() ([]model.Todo, error) {
 
 func (r *todoRepo) GetById(id int64) (*model.Todo, error) {
 	var todo model.Todo
-	err := r.db.QueryRow("SELECT id, created_at, description, priority, status, due_date FROM todo WHERE id = ?", id).
-		Scan(&todo.ID, &todo.CreatedAt, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate)
+	err := r.db.QueryRow("SELECT id, created_at, description, priority, status, due_date, project_id FROM todo WHERE id = ?", id).
+		Scan(&todo.ID, &todo.CreatedAt, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &todo.ProjectID)
 	if err != nil {
 		log.Printf("ERROR: Scan error: %v", err)
 		return nil, err
@@ -105,7 +114,7 @@ func (r *todoRepo) Update(todo *model.Todo) error {
 	s := reflect.ValueOf(stored).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		fieldName := v.Type().Field(i).Name
-		if fieldName != "Description" && fieldName != "Status" {
+		if fieldName != "Description" && fieldName != "Status" && fieldName != "ProjectID" {
 	    continue
 		}
 
@@ -128,8 +137,8 @@ func (r *todoRepo) Update(todo *model.Todo) error {
 	}
 
 	_, err = r.db.Exec(
-		`UPDATE todo SET description=?, due_date=?, priority=?, status=? WHERE id=?`,
-		todo.Description, todo.DueDate, todo.Priority, todo.Status, todo.ID,
+		`UPDATE todo SET description=?, due_date=?, priority=?, status=?, project_id=? WHERE id=?`,
+		todo.Description, todo.DueDate, todo.Priority, todo.Status, todo.ProjectID, todo.ID,
 	)
 	return err
 }

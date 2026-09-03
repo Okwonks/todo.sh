@@ -62,7 +62,15 @@ func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&t)
 	t.ID = int64(id)
 
-	h.service.Update(&t)
+	if err := h.service.Update(&t); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	updated, err := h.service.GetById(int64(id))
+	if err == nil {
+		json.NewEncoder(w).Encode(updated)
+		return
+	}
 	json.NewEncoder(w).Encode(t)
 }
 

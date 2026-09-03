@@ -20,6 +20,10 @@ func (s *TodoService) Create(t *model.Todo) (int64, error) {
 		return 0, errors.New("Description of the todo is required")
 	}
 
+	if t.ProjectID == "" {
+		t.ProjectID = "todos"
+	}
+
 	return s.repo.Create(t)
 }
 

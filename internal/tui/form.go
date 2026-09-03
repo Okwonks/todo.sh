@@ -43,9 +43,14 @@ var (
 
 func InitTask(c *client.Client, t *model.Todo) FormModel {
 	m := FormModel{
-		inputs: make([]textinput.Model, 2),
+		inputs: make([]textinput.Model, 3),
 		client: c,
 		todoID: t.ID,
+	}
+
+	projectVal := t.ProjectID
+	if projectVal == "" {
+		projectVal = "todos"
 	}
 
 	var ti textinput.Model
@@ -77,6 +82,9 @@ func InitTask(c *client.Client, t *model.Todo) FormModel {
 				}
 				return nil
 			}
+		case 2:
+			ti.Placeholder = "Project"
+			ti.SetValue(projectVal)
 		}
 		m.inputs[i] = ti
 	}
@@ -106,11 +114,17 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 					return m, nil
 				}
 
+				proj := strings.TrimSpace(m.inputs[2].Value())
+				if proj == "" {
+					proj = "todos"
+				}
+
 				if m.todoID != 0 {
 					_, err := m.client.
 						Update(m.todoID, map[string]any{
 							"description": m.inputs[0].Value(),
 							"priority":    p,
+							"project_id":  proj,
 						})
 					if err != nil {
 						m.err = err
@@ -122,6 +136,7 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 				t := &model.Todo{
 					Description: m.inputs[0].Value(),
 					Priority:    p,
+					ProjectID:   proj,
 				}
 
 				ct, err := m.client.CreateTodo(t)
@@ -136,6 +151,8 @@ func (m FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 						m.inputs[i].Focus()
 						m.inputs[i].PromptStyle = focusedStyle
 						m.inputs[i].TextStyle = focusedStyle
+					} else if i == 2 {
+						m.inputs[i].SetValue("todos")
 					}
 				}
 				m.focusIndex = 0

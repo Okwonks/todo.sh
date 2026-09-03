@@ -18,5 +18,6 @@ type Todo struct {
 	Completed   bool       `json:"completed"`
   DueDate     *time.Time `json:"due_date,omitempty"`
 	Priority    int        `json:"priority"`
-	Status      status     `json:"status"` 
+	Status      status     `json:"status"`
+	ProjectID   string     `json:"project_id"`
 }

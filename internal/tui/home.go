@@ -38,9 +38,10 @@ type mainModel struct {
 func InitRoot(c *client.Client) tea.Model {
 	columns := []table.Column{
 		{Title: "ID",          Width:  4},
-		{Title: "Description", Width: 40},
+		{Title: "Description", Width: 35},
+		{Title: "Project",     Width: 12},
 		{Title: "P",           Width:  2},
-		{Title: "Due Date",    Width: 30},
+		{Title: "Due Date",    Width: 20},
 	}
 
 	t := table.New(
@@ -117,7 +118,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	  for _, t := range msg {
 			dueDate := formatDueDate(t.DueDate) 
-			rows = append(rows, table.Row{fmt.Sprint(t.ID), t.Description, strconv.Itoa(t.Priority), dueDate})
+			proj := t.ProjectID
+			if proj == "" {
+				proj = "todos"
+			}
+			rows = append(rows, table.Row{fmt.Sprint(t.ID), t.Description, proj, strconv.Itoa(t.Priority), dueDate})
 		}
 
 	  m.table.SetRows(rows)

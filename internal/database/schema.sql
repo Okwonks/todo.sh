@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS todo (
 	completed   BOOL DEFAULT FALSE,
   due_date    DATETIME,
 	priority    INTEGER DEFAULT 5 NOT NULL CHECK (priority IN (1, 2, 3, 4, 5)),
-	status      TEXT DEFAULT 'pending'
+	status      TEXT DEFAULT 'pending',
+	project_id  TEXT DEFAULT 'todos' NOT NULL
 );
