@@ -65,7 +65,8 @@ func (r *todoRepo) Create(t *model.Todo) (int64, error) {
 }
 
 func (r *todoRepo) GetAll() ([]model.Todo, error) {
-	rows, err := r.db.Query("SELECT id, created_at, description, priority, status, due_date, project_id FROM todo")
+	rows, err := r.db.
+		Query("SELECT id, created_at, updated_at, description, completed, priority, status, due_date, project_id FROM todo")
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,9 @@ func (r *todoRepo) GetAll() ([]model.Todo, error) {
 		err := rows.Scan(
 			&todo.ID,
 			&todo.CreatedAt,
+			&todo.UpdatedAt,
 			&todo.Description,
+			&todo.Completed,
 			&todo.Priority,
 			&todo.Status,
 			&todo.DueDate,
@@ -94,8 +97,13 @@ func (r *todoRepo) GetAll() ([]model.Todo, error) {
 
 func (r *todoRepo) GetById(id int64) (*model.Todo, error) {
 	var todo model.Todo
-	err := r.db.QueryRow("SELECT id, created_at, description, priority, status, due_date, project_id FROM todo WHERE id = ?", id).
-		Scan(&todo.ID, &todo.CreatedAt, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &todo.ProjectID)
+	err := r.db.
+		QueryRow(`
+			SELECT id, created_at, updated_at, description, completed, priority, status, due_date, project_id
+			  FROM todo
+			 WHERE id = ?
+		`, id).
+		Scan(&todo.ID, &todo.CreatedAt, &todo.UpdatedAt, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &todo.ProjectID)
 	if err != nil {
 		log.Printf("ERROR: Scan error: %v", err)
 		return nil, err
@@ -137,8 +145,8 @@ func (r *todoRepo) Update(todo *model.Todo) error {
 	}
 
 	_, err = r.db.Exec(
-		`UPDATE todo SET description=?, due_date=?, priority=?, status=?, project_id=? WHERE id=?`,
-		todo.Description, todo.DueDate, todo.Priority, todo.Status, todo.ProjectID, todo.ID,
+		`UPDATE todo SET description=?, due_date=?, priority=?, status=?, completed=?, project_id=? WHERE id=?`,
+		todo.Description, todo.DueDate, todo.Priority, todo.Status, todo.Completed, todo.ProjectID, todo.ID,
 	)
 	return err
 }

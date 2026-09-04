@@ -22,17 +22,19 @@ const (
 	view mode = iota
 	create
 	edit
+	stats
 )
 
 type mainModel struct {
-	mode     mode
-	client   *client.Client
-	table    table.Model
-	taskForm FormModel
-	tasks    []model.Todo
-	err      error
-	width    int
-	height   int
+	mode      mode
+	client    *client.Client
+	table     table.Model
+	taskForm  FormModel
+	statsDash StatsModel
+	tasks     []model.Todo
+	err       error
+	width     int
+	height    int
 }
 
 func InitRoot(c *client.Client) tea.Model {
@@ -60,8 +62,9 @@ func InitRoot(c *client.Client) tea.Model {
 	t.SetStyles(s)
 
 	f := InitTask(c, &model.Todo{})
+	sm := InitStats()
 
-	m := mainModel{mode: view, table: t, client: c, taskForm: f}
+	m := mainModel{mode: view, table: t, client: c, taskForm: f, statsDash: sm }
 	return m
 }
 
@@ -114,6 +117,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case listTodosMsg:
 	  m.tasks = msg
+		m.statsDash = m.statsDash.SetTasks(msg)
+
 		rows := make([]table.Row, 0, len(msg))
 
 	  for _, t := range msg {
@@ -136,12 +141,34 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mode = view
 		return m, fetchTodos(m.client)
 	case tea.KeyMsg:
+		if m.mode == stats {
+			switch msg.String() {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+
+			case "tab":
+				m.mode = view
+				return m, fetchTodos(m.client)
+
+			case "r":
+				return m, fetchTodos(m.client)
+
+			default:
+				var cmd tea.Cmd
+				m.statsDash, cmd = m.statsDash.Update(msg)
+				return m, cmd
+			}
+		}
+
 		if m.mode == view {
 			switch msg.String() {
 			case "ctrl+c", "q":
 				return m, tea.Quit
 			case "ctrl+r", "r":
 				return m, fetchTodos(m.client)
+			case "tab":
+				m.mode = stats
+				return m, nil
 			case "n":
 				newTask := &model.Todo{}
 				m.taskForm = InitTask(m.client, newTask)
@@ -184,6 +211,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) View() string {
+	if m.mode == stats {
+		return m.statsDash.View()
+	}
+
 	style := lipgloss.NewStyle().Bold(true).Margin(1)
 	title := style.Render("Todo.sh")
 
@@ -255,7 +286,7 @@ func (m mainModel) renderSidebar() string {
 			completedTasks += 1
 		}
 
-		if task.Priority >= 3 {
+		if task.Priority <= 3 {
 			highPriority += 1
 		}
 	}
