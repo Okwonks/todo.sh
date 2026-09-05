@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +10,35 @@ import (
 	"github.com/Okwonks/go-todo/internal/tui/constants"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	statsMint  = lipgloss.Color("#6fe3ac")
+	statsCoral = lipgloss.Color("#e8899a")
+	statsAmber = lipgloss.Color("#e8b96f")
+	statsBlue  = lipgloss.Color("#6fa8e8")
+	statsCyan  = lipgloss.Color("#6fd4e8")
+	statsMuted = lipgloss.Color("240")
+	statsFg    = lipgloss.Color("255")
+
+	statsCard = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(statsMuted).
+			Padding(1, 2)
+
+	statsLabel = lipgloss.NewStyle().Foreground(statsMuted)
+)
+
+// Shared dashboard sizing. Every row targets the same outer width
+// (72 = three 22-wide stat cards + their borders) so the chart and
+// bottom row line up with the top row instead of shrink-wrapping to
+// their own content.
+const (
+	statCardWidth     = 22 // outer 24
+	chartWidth        = 70 // outer 72
+	priorityCardWidth = 32 // outer 34
+	activityCardWidth = 34 // outer 36; 34+36+gap(2) = 72
+	bottomCardHeight  = 5  // label + blank + 3 data rows, forced equal
 )
 
 type StatsModel struct {
@@ -41,61 +69,74 @@ func (m StatsModel) View() string {
 
 	data := m.calculate()
 
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("252")).
-		Render("Todo.sh - stats")
+	style := lipgloss.NewStyle().Bold(true).Margin(1)
+	title := style.Render("Todo.sh | [stats]")
 
-	help := constants.HelpStyle("[q] quit • [r] refresh • [tab] switch view")
+	topRow := lipgloss.
+		JoinHorizontal(
+			lipgloss.Top,
+			renderStatCard("total tasks", fmt.Sprintf("%d", data.total), statsFg, ""),
+			renderStatCard("completed", fmt.Sprintf("%d", data.completed), statsMint, fmt.Sprintf("%d%%", percentage(data.completed, data.total))),
+			renderStatCard("overdue", fmt.Sprintf("%d", data.overdue), statsCoral, ""),
+		)
 
-	header := lipgloss.JoinVertical(
-		lipgloss.Left,
-		title,
-	)
+	chart := statsCard.
+	  Width(chartWidth).
+	  Render(
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				statsLabel.Render("completed / day - last 14 days"),
+				"",
+				renderCompletionGraph(data.daily, 6, statsMint),
+			),
+		)
 
-	cards := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		renderStatCard(
-			"total tasks",
-			strconv.Itoa(data.total),
-			"",
-		),
-		renderStatCard(
-			"completed",
-			strconv.Itoa(data.completed),
-			fmt.Sprintf("(%d%%)", percentage(data.completed, data.total)),
-		),
-		renderStatCard(
-			"overdue",
-			strconv.Itoa(data.overdue),
-			"",
-		),
-	)
+	high, med, low := data.high, data.med, data.low
+	maxPriority := high
+	if med > maxPriority {
+		maxPriority = med
+	}
+	if low > maxPriority {
+		maxPriority = low
+	}
 
-	graph := renderCompletionGraph(data.daily)
+	priorityCard := statsCard.
+	  Width(priorityCardWidth).
+		Height(bottomCardHeight).
+	  Render(
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				statsLabel.Render("by priority"),
+				"",
+				priorityRow("high", high, maxPriority, statsCoral),
+				priorityRow("med", med, maxPriority, statsAmber),
+				priorityRow("low", low, maxPriority, statsBlue),
+			),
+		)
 
-	priority := renderPriority(
-		data.high,
-		data.med,
-		data.low,
-	)
-
-	activity := renderActivity(data.recent)
-
-	bottom := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		priority,
-		activity,
-	)
-
-	return lipgloss.NewStyle().
-		Padding(1, 2).
+	activityCard := statsCard.
+	  Width(activityCardWidth).
+		Height(bottomCardHeight).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Left,
-				header,
-				cards,
-				graph,
+				statsLabel.Render("recent activity"),
+				"",
+				renderActivity(data.recent, activityCardWidth),
+			),
+		)
+
+	bottom := lipgloss.JoinHorizontal(lipgloss.Top, priorityCard, "  ", activityCard)
+
+	help := constants.HelpStyle("[q] quit • [r] refresh • [tab] back to list")
+
+	return lipgloss.NewStyle().
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				title,
+				topRow,
+				chart,
 				bottom,
 				help,
 			),
@@ -189,37 +230,21 @@ func daysBetween(a, b time.Time) int {
 	a = a.Truncate(24 * time.Hour)
 	b = b.Truncate(24 * time.Hour)
 
-	return int(b.Sub(a) / 24 * time.Hour)
+	return int(b.Sub(a) / (24 * time.Hour))
 }
 
-func renderStatCard(title, value, secondary string) string {
-	titleStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245"))
-
-	valueStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("252")).
-		MarginTop(1)
-	
-	secondaryStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("254"))
-
-	valueLine := valueStyle.Render(value)
-
-	if secondary != "" {
-		valueLine += " " + secondaryStyle.Render(secondary)
+func renderStatCard(label, value string, color lipgloss.Color, suffix string) string {
+	valueLine := lipgloss.NewStyle().Bold(true).Foreground(color).Render(value)
+	if suffix != "" {
+		valueLine += " " + statsLabel.Render(suffix)
 	}
 
-	return lipgloss.NewStyle().
-		Width(24).
-		Height(5).
-		Border(lipgloss.RoundedBorder()).
-		Padding(0, 1).
-		MarginRight(1).
+	return statsCard.
+	  Width(statCardWidth).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Left,
-				titleStyle.Render(title),
+				statsLabel.Render(label),
 				valueLine,
 			),
 		)
@@ -233,109 +258,50 @@ func percentage(value, total int) int {
 	return (value * 100) / total
 }
 
-func renderCompletionGraph(values []int) string {
-	title := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245")).
-		Render("completed / day — last 14 days")
-
-	maxValue := 0
-
-	for _, value := range values {
-		if value > maxValue {
-			maxValue = value
-		}
+func renderCompletionGraph(values []int, maxHeight int, color lipgloss.Color) string {
+	if len(values) == 0 {
+		return ""
 	}
 
-	const barHeight = 6
+	max := max(values...)
 
-	var lines []string
-
-	for row := barHeight; row > 0; row-- {
-		var line strings.Builder
-
-		for _, value := range values {
-			level := 0
-
-			if maxValue > 0 {
-				level = (value * barHeight) / maxValue
-			}
-
-			if level >= row {
-				line.WriteString("███")
+	barStyle := lipgloss.NewStyle().Foreground(color)
+	cols := make([]string, len(values))
+	for i, v := range values {
+		h := int(float64(maxHeight) * float64(v) / float64(max))
+		if v > 0 && h == 0 {
+			h = 1
+		}
+		var b strings.Builder
+		for row := maxHeight; row > 0; row-- {
+			if row <= h {
+				b.WriteString(barStyle.Render("███"))
 			} else {
-				line.WriteString("  ")
+				b.WriteString("  ")
 			}
+			b.WriteString("\n")
 		}
-
-		lines = append(lines, line.String())
+		cols[i] = strings.TrimRight(b.String(), "\n")
 	}
-
-	graph := strings.Join(lines, "\n")
-
-	return lipgloss.NewStyle().
-		Width(70).
-		Border(lipgloss.RoundedBorder()).
-		Padding(1).
-		Render(
-			lipgloss.JoinVertical(
-				lipgloss.Left,
-				title,
-				graph,
-			),
-		)
+	return lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
 }
 
-func renderPriority(high, med, low int) string {
-	title := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245")).
-		Render("by priority")
-
-	maxValue := max(high, med, low)
-
-	rows := []string{
-		priorityRow("high", high, maxValue),
-		priorityRow("med", med, maxValue),
-		priorityRow("low", low, maxValue),
+func priorityRow(label string, count, maxValue int, color lipgloss.Color) string {
+	width := 18
+	if maxValue == 0 {
+		maxValue = 1
 	}
-
-	return lipgloss.NewStyle().
-		Width(40).
-		Border(lipgloss.RoundedBorder()).
-		Padding(1).
-		Render(
-			lipgloss.JoinVertical(
-				lipgloss.Left,
-				title,
-				"",
-				strings.Join(rows, "\n"),
-			),
-		)
-}
-
-func priorityRow(label string, value, maxValue int) string {
-	const width = 12
-
-	filled := 0
-
-	if maxValue > 0 {
-		filled = (value * width) / maxValue
+	filled := int(float64(width) * float64(count) / float64(maxValue))
+	if filled > width {
+		filled = width
 	}
-
-	empty := width - filled
-
-	bar := strings.Repeat("█", filled) +
-		strings.Repeat("░", empty)
-
-	return fmt.Sprintf(
-		"%-5s %s %d",
-		label,
-		bar,
-		value,
-	)
+	bar := lipgloss.NewStyle().Foreground(color).Render(strings.Repeat("█", filled)) +
+	  lipgloss.NewStyle().Foreground(statsMuted).Render(strings.Repeat("░", width - filled))
+	return fmt.Sprintf("%-5s %s %d", label, bar, count)
 }
 
 func max(values ...int) int {
-	result := 0
+	result := 1
 
 	for _, value := range values {
 		if value > result {
@@ -346,43 +312,43 @@ func max(values ...int) int {
 	return result
 }
 
-func renderActivity(tasks []model.Todo) string {
-	title := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245")).
-		Render("recent activity")
+func renderActivity(tasks []model.Todo, cardWidth int) string {
+	if len(tasks) == 0 {
+		return statsLabel.Render("no recent activity")
+	}
 
-	var rows []string
+	const (
+		timeWidth   = 6 // "15:04 "
+		statusWidth = 8 // longest status ("started"/"blocked"/"pending") + 1 space
+		padding     = 4 // card's own left+right padding
+	)
 
+	titleBudget := cardWidth - padding - timeWidth - statusWidth;
+	if titleBudget < 4 {
+		titleBudget = 4
+	}
+
+	var lines []string
 	for _, task := range tasks {
 		t := activityTime(task)
 
-		action := "new"
-
+		statusStyle := lipgloss.NewStyle().Foreground(statsCyan)
 		if task.Completed {
-			action = "done"
+			statusStyle = lipgloss.NewStyle().Foreground(statsMint)
 		}
-
-		rows = append(
-			rows,
-			fmt.Sprintf(
-				"%s  %s  %s",
-				t.Format("15:04"),
-				action,
-				task.Description,
-			),
-		)
+		title := task.Description
+		if len(title) > titleBudget {
+			cut := titleBudget - 3
+			if cut < 1 {
+				cut = 1
+			}
+			title = title[:cut] + "..."
+		}
+		lines = append(lines, fmt.Sprintf("%s %s %s",
+		  statsLabel.Render(t.Format("15:04")),
+			statusStyle.Render(string(task.Status)),
+			title,
+		))
 	}
-
-	return lipgloss.NewStyle().
-		Width(45).
-		Border(lipgloss.RoundedBorder()).
-		Padding(1).
-		Render(
-			lipgloss.JoinVertical(
-				lipgloss.Left,
-				title,
-				"",
-				strings.Join(rows, "\n"),
-			),
-		)
+	return strings.Join(lines, "\n")
 }
