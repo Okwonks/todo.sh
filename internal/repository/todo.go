@@ -103,7 +103,7 @@ func (r *todoRepo) GetById(id int64) (*model.Todo, error) {
 			  FROM todo
 			 WHERE id = ?
 		`, id).
-		Scan(&todo.ID, &todo.CreatedAt, &todo.UpdatedAt, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &todo.ProjectID)
+		Scan(&todo.ID, &todo.CreatedAt, &todo.UpdatedAt, &todo.Description, &todo.Completed, &todo.Priority, &todo.Status, &todo.DueDate, &todo.ProjectID)
 	if err != nil {
 		log.Printf("ERROR: Scan error: %v", err)
 		return nil, err
